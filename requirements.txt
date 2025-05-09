@@ -3,3 +3,5 @@ uvicorn
 twilio
 python-dotenv
 python-multipart
+openai>=1.0           # nueva API
+
