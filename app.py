@@ -3,24 +3,65 @@ from twilio.twiml.messaging_response import MessagingResponse
 from openai import OpenAI
 import os
 
-client = OpenAI()
+llm_router = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.0)   # decide el destino
+llm_worker = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.4)   # responde
 
-SYSTEM_PROMPT = (
-    "Eres un asistente amable y conciso. Responde en un máximo de 3-4 líneas "
-    "y en español neutro. Si no sabes la respuesta, reconócelo brevemente."
+
+prompt_sales = ChatPromptTemplate.from_messages(
+    [
+        ("system", "Eres un representante de ventas entusiasta. Contesta unicamente con tu función."),
+        ("human", "{input}")
+    ]
 )
 
-def generate_reply(user_msg: str) -> str:
-    resp = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_msg},
-        ],
-        temperature=0.4,
-        max_tokens=250,
-    )
-    return resp.choices[0].message.content.strip()
+prompt_support = ChatPromptTemplate.from_messages(
+    [
+        ("system", "Eres agente de soporte técnico. Contesta unicamente con tu función."),
+        ("human", "{input}")
+    ]
+)
+
+prompt_general = ChatPromptTemplate.from_messages(
+    [
+        ("system", "Eres un asistente general, amable y conciso. Contesta unicamente con tu función."),
+        ("human", "{input}")
+    ]
+)
+
+def make_chain(prompt):
+    return prompt | llm_worker | StrOutputParser()
+
+sales_chain    = make_chain(prompt_sales)
+support_chain  = make_chain(prompt_support)
+general_chain  = make_chain(prompt_general)
+
+router_prompt = ChatPromptTemplate.from_messages(
+    [
+        ("system",
+         "Eres un clasificador que responde SOLO con la palabra: "
+         "`ventas`, `soporte` o `general`.\n\n"
+         "Categoriza la consulta del usuario según estas reglas:\n"
+         "- Ventas: preguntas sobre precios, promociones, disponibilidades.\n"
+         "- Soporte: quejas, problemas técnicos, devoluciones.\n"
+         "- General: todo lo demás.\n"),
+        ("human", "{input}")
+    ]
+)
+
+def route(message: str) -> str:
+    resp = llm_router.invoke(router_prompt.format_messages(input=message))
+    return resp.content.strip().lower()
+
+def router_chain(message: str):
+    choice = route(message)
+    if choice == "ventas":
+        return sales_chain.invoke({"input": message})
+    elif choice == "soporte":
+        return support_chain.invoke({"input": message})
+    else:
+        return general_chain.invoke({"input": message})
+
+
 
 app = FastAPI()
 
@@ -28,7 +69,11 @@ app = FastAPI()
 async def whatsapp(req: Request):
     form = await req.form()
     incoming = form.get("Body", "")
-    answer = generate_reply(incoming)
+    try:
+        answer = router_chain(incoming)
+    except Exception as e:
+        print("🛑 Error:", e)
+        answer = "Lo siento, ocurrió un problema al procesar tu mensaje."
     twi_resp = MessagingResponse()
     twi_resp.message(answer)
     return Response(str(twi_resp), media_type="application/xml")

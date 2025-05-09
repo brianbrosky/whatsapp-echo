@@ -4,4 +4,7 @@ twilio
 python-dotenv
 python-multipart
 openai>=1.0           # nueva API
-
+langchain
+langchain-openai
+langchain-community
+tiktoken
