@@ -1,7 +1,13 @@
-from fastapi import FastAPI, Request, Response
-from twilio.twiml.messaging_response import MessagingResponse
 from openai import OpenAI
-import os
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough, RunnableLambda
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.callbacks import CallbackManager
+from langchain_core.messages import HumanMessage
+
+import os, json
+
 
 llm_router = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.0)   # decide el destino
 llm_worker = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.4)   # responde
