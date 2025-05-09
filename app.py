@@ -5,6 +5,8 @@ from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.callbacks import CallbackManager
 from langchain_core.messages import HumanMessage
+from fastapi import FastAPI, Request, Response
+from twilio.twiml.messaging_response import MessagingResponse
 
 import os, json
 
