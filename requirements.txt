@@ -1,10 +1,11 @@
 fastapi
 uvicorn
 twilio
-python-dotenv
-python-multipart
-openai>=1.0           # nueva API
+openai>=1.0
 langchain
 langchain-openai
 langchain-community
-tiktoken
+python-dotenv
+python-multipart
+redis            # (opcional, solo si usarás Redis)
+chromadb
